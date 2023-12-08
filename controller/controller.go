@@ -59,9 +59,9 @@ func (c *Controller) HandleEventPost(ctx echo.Context) error {
 		return ctx.JSON(http.StatusInternalServerError,
 			c.NewErrorResponse("Error retrieving form parameters", err))
 	}
-	ctx.Logger().Infof("Ecowitt event: %v", values)
 
 	forwardUrl := fmt.Sprintf("%s/api/webhook/%s", c.hassURL, c.webhookID)
+	ctx.Logger().Infof("Forwarding Ecowitt event data to %q: %v", forwardUrl, values)
 
 	haClient := NewHassClient(forwardUrl, c.hassAuthToken, values)
 	if err := haClient.PostData(ctx.Request().Context()); err != nil {
