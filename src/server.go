@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -18,7 +19,9 @@ import (
 type OsEnvOption int
 
 const (
-	EnvHassURL OsEnvOption = iota
+	EnvServerAddress OsEnvOption = iota
+	EnvServerPort
+	EnvHassURL
 	EnvHassAuthToken
 	EnvHassWebhookId
 )
@@ -32,7 +35,7 @@ func (o OsEnvOption) Index() int {
 }
 
 func getEnvVarNames() []string {
-	return []string{"HASS_URL", "HASS_AUTH_TOKEN", "HASS_WEBHOOK_ID"}
+	return []string{"SERVER_ADDRESS", "SERVER_PORT", "HASS_URL", "HASS_AUTH_TOKEN", "HASS_WEBHOOK_ID"}
 }
 
 const (
@@ -90,17 +93,35 @@ func customHTTPErrorHandler(err error, c echo.Context) {
 	c.JSON(code, data)
 }
 
+func getEnvOrOpt(envName, optValue string) string {
+	if v := os.Getenv(envName); len(v) > 0 {
+		return v
+	}
+	if len(optValue) > 0 {
+		return optValue
+	}
+	return ""
+}
+
+func getOptOrEnv(optValue, envName string) string {
+	if len(optValue) > 0 {
+		return optValue
+	}
+
+	if v := os.Getenv(envName); len(v) > 0 {
+		return v
+	}
+
+	return ""
+}
+
 func main() {
 	// Setup command line flags
 	var printHelp bool
 	flag.BoolVar(&printHelp, "help", false, "Show all flags and their default values")
 	flag.BoolVar(&printHelp, "?", false, "Show all flags and their default values")
 
-	opts := ServerOptions{
-		HassURL:       os.Getenv(EnvHassURL.String()),
-		HassAuthToken: os.Getenv(EnvHassAuthToken.String()),
-		WebhookID:     os.Getenv(EnvHassWebhookId.String()),
-	}
+	opts := ServerOptions{}
 	flag.StringVar(&opts.Address, "address", "", "IP address to listen on (default is to listen on all addresses)")
 	flag.IntVar(&opts.Port, "port", 8181, "TCP port to listen on")
 	flag.StringVar(&opts.HassURL, FlagHassUrl, "",
@@ -111,15 +132,28 @@ func main() {
 		fmt.Sprintf("Home Assistant webhook id (defaults to env var %s)", EnvHassWebhookId))
 	flag.Parse()
 
+	opts.Address = getEnvOrOpt(EnvServerAddress.String(), opts.Address)
+	if portStr := os.Getenv(EnvServerPort.String()); len(portStr) > 0 {
+		var err error
+		if opts.Port, err = strconv.Atoi(portStr); err != nil {
+			fmt.Printf("Error parsing server port %q: %v", portStr, err)
+			return
+		}
+	}
+
+	opts.HassURL = getOptOrEnv(opts.HassURL, EnvHassURL.String())
+	opts.HassAuthToken = getOptOrEnv(opts.HassAuthToken, EnvHassAuthToken.String())
+	opts.WebhookID = getOptOrEnv(opts.WebhookID, EnvHassWebhookId.String())
+
 	missingArgs := len(opts.HassURL) == 0 || len(opts.HassAuthToken) == 0 || len(opts.WebhookID) == 0
 	if len(opts.HassURL) == 0 {
-		fmt.Fprintf(os.Stderr, "Missing required commandline argument: %s\n", FlagHassUrl)
+		fmt.Fprintf(os.Stderr, "Missing required flag -%s (%s)\n", FlagHassUrl, EnvHassURL.String())
 	}
 	if len(opts.HassAuthToken) == 0 {
-		fmt.Fprintf(os.Stderr, "Missing required commandline argument: %s\n", FlagHassAuthToken)
+		fmt.Fprintf(os.Stderr, "Missing required flag -%s (%s)\n", FlagHassAuthToken, EnvHassAuthToken.String())
 	}
 	if len(opts.WebhookID) == 0 {
-		fmt.Fprintf(os.Stderr, "Missing required commandline argument: %s\n", FlagHassWebhookId)
+		fmt.Fprintf(os.Stderr, "Missing required flag -%s (%s)\n", FlagHassWebhookId, EnvHassWebhookId.String())
 	}
 	if missingArgs {
 		fmt.Fprintln(os.Stderr)
@@ -138,8 +172,8 @@ func main() {
 	}
 
 	e := echo.New()
-	e.Renderer = t
 	e.Logger.SetLevel(log.INFO)
+	e.Renderer = t
 	e.HTTPErrorHandler = customHTTPErrorHandler
 
 	ctrl := controller.New(opts.HassURL, opts.HassAuthToken, opts.WebhookID)
