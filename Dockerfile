@@ -21,3 +21,10 @@ EXPOSE 8181
 USER nonroot:nonroot
 
 CMD ["/hass-ecowitt-proxy"]
+
+# Metadata
+LABEL org.opencontainers.image.source="https://github.com/organicveggie/home-assistant-ecowitt-proxy"
+LABEL org.opencontainers.image.description="HTTP to HTTPS proxy for using Ecowitt Weather Stations with Home Assistant"
+LABEL org.opencontainers.image.licenses=GPL-3.0-only
+LABEL org.opencontainers.image.title="Home Assistant Ecowitt Proxy"
+LABEL org.opencontainers.image.url="https://github.com/organicveggie/home-assistant-ecowitt-proxy"
