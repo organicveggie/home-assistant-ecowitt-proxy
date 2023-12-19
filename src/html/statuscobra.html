@@ -1,0 +1,55 @@
+{{ define "status" }}
+<style type="text/css">
+    .container {
+        display: flex;
+        flex-direction: column;
+    }
+    .section {
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 1em;
+    }
+    .kv-pair {
+        display: flex;
+        flex-direction: row;
+    }
+    .kv-pair div {
+        padding-right: 1em;
+    }
+    .title {
+        font-weight: bold;
+    }
+</style>
+<div class="container">
+    <div class="section">
+        <div class="title">Events</div>
+        <div class="kv-pair">
+            <div>Event Count={{ .EventCount }}</div>
+        </div>
+        <div class="kv-pair">
+            <div>Error Count={{ .ErrorCount }}</div>
+        </div>
+    </div>
+    <div class="section">
+        <div class="title">Server Options</div>
+        <div class="kv-pair">
+            <div>Address={{ .Opts.Address }}</div>
+        </div>
+        <div class="kv-pair">
+            <div>Port={{ .Opts.Port }}</div>
+        </div>
+    </div>
+    <div class="section">
+        <div class="title">Home Assistant Options</div>
+        <div class="kv-pair">
+            <div>URL={{ .Opts.HassURL }}</div>
+        </div>
+        <div class="kv-pair">
+            <div>Auth Token={{ .Opts.HassAuthToken }}</div>
+        </div>
+        <div class="kv-pair">
+            <div>Webhook ID={{ .Opts.WebhookID }}</div>
+        </div>
+    </div>
+</div>
+{{end}}
