@@ -20,7 +20,7 @@ EXPOSE 8181
 
 USER nonroot:nonroot
 
-CMD ["/hass-ecowitt-proxy"]
+CMD ["/hass-ecowitt-proxy", "serve"]
 
 # Metadata
 LABEL org.opencontainers.image.source="https://github.com/organicveggie/home-assistant-ecowitt-proxy"
