@@ -20,11 +20,7 @@ import (
 	"fmt"
 	"hass-ecowitt-proxy/controller"
 	"html/template"
-	"io"
-	"net/http"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/gommon/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -60,8 +56,8 @@ var serveCmd = &cobra.Command{
 	Short: "Listen for HTTP messages",
 	Long: `Start server mode to listen for incoming HTTP messages. Does not
 exit until it receives a SIGTERM.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		runServeCmd(cmd, args)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runServeCmd(cmd, args)
 	},
 }
 
@@ -96,59 +92,11 @@ func init() {
 	viper.BindEnv(flagHassWebhookId, "HASS_WEBHOOK_ID", "ECOWITT_PROXY_HASS_WEBHOOK_ID")
 }
 
-type Template struct {
-	templates *template.Template
-}
-
-func (t *Template) Render(w io.Writer, name string, data interface{}, _ echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
-}
-
-func runServeCmd(cmd *cobra.Command, args []string) {
-	t := &Template{
-		templates: template.Must(template.ParseGlob("html/*.html")),
-	}
-
-	e := echo.New()
-	e.Logger.SetLevel(log.INFO)
-	e.Renderer = t
-	e.HTTPErrorHandler = customHTTPErrorHandler
-
-	ctrl := controller.New(serveOpts.HassURL, serveOpts.HassAuthToken, serveOpts.WebhookID)
+func runServeCmd(cmd *cobra.Command, args []string) error {
+	ctrl := controller.New(serveOpts.HassURL, serveOpts.HassAuthToken, serveOpts.WebhookID,
+		controller.WithTemplates(template.Must(template.ParseGlob("html/*.html"))))
 	defer ctrl.Close()
 
-	e.GET("/event", ctrl.HandleEventGet)
-	e.POST("/event", ctrl.HandleEventPost)
-	e.GET("/health", ctrl.HandleHealth)
-
-	e.GET("/status", func(c echo.Context) error {
-		data := struct {
-			Opts       ServerOptions
-			EventCount uint32
-			ErrorCount uint32
-		}{
-			Opts:       serveOpts,
-			EventCount: ctrl.GetEventCount(),
-			ErrorCount: ctrl.GetErrorCount(),
-		}
-		return c.Render(http.StatusOK, "status", data)
-	})
-
 	addr := fmt.Sprintf("%s:%d", serveOpts.Address, serveOpts.Port)
-	e.Logger.Fatal(e.Start(addr))
-}
-
-func customHTTPErrorHandler(err error, c echo.Context) {
-	code := http.StatusInternalServerError
-	if he, ok := err.(*echo.HTTPError); ok {
-		code = he.Code
-	}
-	c.Logger().Error(err)
-
-	data := struct {
-		Message string
-	}{
-		Message: "Internal Server Error",
-	}
-	c.JSON(code, data)
+	return ctrl.Serve(addr)
 }
