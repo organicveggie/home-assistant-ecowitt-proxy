@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -162,12 +163,46 @@ func TestWebhookClient(t *testing.T) {
 	}
 }
 
-func TestServe(t *testing.T) {
+func TestHandleStatus(t *testing.T) {
+	const defaultAddr = "127.0.0.1:8181"
+	const hassUrl = "http://ha.example.com/ecowitt"
+	const hassAuthToken = "ABCD"
+	const hassWebhookId = "1234"
+
 	tests := []struct {
-		name string
-	}{}
+		name           string
+		tmplFilename   string
+		address        string
+		url            string
+		authToken      string
+		webhookId      string
+		wantStatusCode int
+	}{
+		{
+			name:           "should display html",
+			tmplFilename:   "status.html",
+			address:        defaultAddr,
+			url:            hassUrl,
+			authToken:      hassAuthToken,
+			webhookId:      hassWebhookId,
+			wantStatusCode: http.StatusOK,
+		},
+	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/status", nil)
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+
+			f := fmt.Sprintf("testdata/%s", test.tmplFilename)
+			ctrl := New(test.url, test.authToken, test.webhookId,
+				WithTemplates(template.Must(template.ParseFiles(f))), WithEchoServer(e))
+			defer ctrl.Close()
+
+			err := ctrl.HandleStatus(ctx, test.address)
+			assert.Nil(t, err)
+			assert.Equal(t, test.wantStatusCode, rec.Code)
 		})
 	}
 }

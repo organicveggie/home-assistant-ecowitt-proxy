@@ -13,6 +13,7 @@ import (
 
 func New(url string, authToken string, webhookID string, opts ...Option) *Controller {
 	c := &Controller{
+		echoSrv:       echo.New(),
 		hassURL:       url,
 		hassAuthToken: authToken,
 		webhookID:     webhookID,
@@ -21,6 +22,10 @@ func New(url string, authToken string, webhookID string, opts ...Option) *Contro
 	for _, opt := range opts {
 		opt(c)
 	}
+
+	c.echoSrv.Logger.SetLevel(log.INFO)
+	c.echoSrv.Renderer = c
+	c.echoSrv.HTTPErrorHandler = customHTTPErrorHandler
 
 	return c
 }
@@ -33,7 +38,14 @@ func WithTemplates(templates *template.Template) Option {
 	}
 }
 
+func WithEchoServer(echoSrv *echo.Echo) Option {
+	return func(c *Controller) {
+		c.echoSrv = echoSrv
+	}
+}
+
 type Controller struct {
+	echoSrv   *echo.Echo
 	templates *template.Template
 
 	hassURL       string
@@ -129,7 +141,7 @@ func (c *Controller) NewErrorResponse(msg string, err error) ErrorResponse {
 	}
 }
 
-func (c *Controller) Render(w io.Writer, name string, data interface{}, _ echo.Context) error {
+func (c *Controller) Render(w io.Writer, name string, data interface{}, ctx echo.Context) error {
 	return c.templates.ExecuteTemplate(w, name, data)
 }
 

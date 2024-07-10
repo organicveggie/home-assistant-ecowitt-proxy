@@ -92,7 +92,7 @@ func init() {
 	viper.BindEnv(flagHassWebhookId, "HASS_WEBHOOK_ID", "ECOWITT_PROXY_HASS_WEBHOOK_ID")
 }
 
-func runServeCmd(cmd *cobra.Command, args []string) error {
+func runServeCmd(_ *cobra.Command, _ []string) error {
 	ctrl := controller.New(serveOpts.HassURL, serveOpts.HassAuthToken, serveOpts.WebhookID,
 		controller.WithTemplates(template.Must(template.ParseGlob("html/*.html"))))
 	defer ctrl.Close()
