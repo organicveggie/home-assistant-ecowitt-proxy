@@ -1,0 +1,29 @@
+{{ define "statuscobra" }}
+<div class="section events">
+  <div class="title">Events</div>
+  <div class="kv-pair event">
+    <div>Event Count={{ .EventCount }}</div>
+  </div>
+  <div class="kv-pair error">
+    <div>Error Count={{ .ErrorCount }}</div>
+  </div>
+</div>
+<div class="section server">
+  <div class="title">Server Details</div>
+  <div class="kv-pair address">
+    <div>Address={{ .Address }}</div>
+  </div>
+</div>
+<div class="section hass">
+  <div class="title">Home Assistant Options</div>
+  <div class="kv-pair url">
+    <div>URL={{ .HassURL }}</div>
+  </div>
+  <div class="kv-pair auth-token">
+    <div>Auth Token={{ .HassAuthToken }}</div>
+  </div>
+  <div class="kv-pair webhook-id">
+    <div>Webhook ID={{ .WebhookID }}</div>
+  </div>
+</div>
+{{end}}
