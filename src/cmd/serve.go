@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Sean Laurent <o r g a n i c v e g g i e @ Google Mail>
+Copyright © 2023-2024 Sean Laurent <o r g a n i c v e g g i e @ Google Mail>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
