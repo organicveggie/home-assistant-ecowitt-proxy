@@ -1,9 +1,26 @@
+/*
+Copyright © 2023-2024 Sean Laurent <o r g a n i c v e g g i e @ Google Mail>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 package controller
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -158,6 +175,50 @@ func TestWebhookClient(t *testing.T) {
 				t.Errorf("unexpected error making Hass Client PostData call: %s", err)
 			}
 			assert.Equal(t, test.data, gotValues)
+		})
+	}
+}
+
+func TestHandleStatus(t *testing.T) {
+	const defaultAddr = "127.0.0.1:8181"
+	const hassUrl = "http://ha.example.com/ecowitt"
+	const hassAuthToken = "ABCD"
+	const hassWebhookId = "1234"
+
+	tests := []struct {
+		name           string
+		tmplFilename   string
+		address        string
+		url            string
+		authToken      string
+		webhookId      string
+		wantStatusCode int
+	}{
+		{
+			name:           "should display html",
+			tmplFilename:   "status.html",
+			address:        defaultAddr,
+			url:            hassUrl,
+			authToken:      hassAuthToken,
+			webhookId:      hassWebhookId,
+			wantStatusCode: http.StatusOK,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/status", nil)
+			rec := httptest.NewRecorder()
+			ctx := e.NewContext(req, rec)
+
+			f := fmt.Sprintf("testdata/%s", test.tmplFilename)
+			ctrl := New(test.url, test.authToken, test.webhookId,
+				WithTemplates(template.Must(template.ParseFiles(f))), WithEchoServer(e))
+			defer ctrl.Close()
+
+			err := ctrl.HandleStatus(ctx, test.address)
+			assert.Nil(t, err)
+			assert.Equal(t, test.wantStatusCode, rec.Code)
 		})
 	}
 }
