@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 )
@@ -43,7 +42,6 @@ func New(url string, authToken string, webhookID string, opts ...Option) *Contro
 	c.echoSrv.Logger.SetLevel(log.INFO)
 	c.echoSrv.Renderer = c
 	c.echoSrv.HTTPErrorHandler = customHTTPErrorHandler
-	c.echoSrv.Use(echoprometheus.NewMiddleware("hass-ecowitt-proxy")) // adds middleware to gather metrics
 
 	return c
 }
@@ -164,15 +162,20 @@ func (c *Controller) Render(w io.Writer, name string, data interface{}, ctx echo
 }
 
 func (c *Controller) Serve(addr string) error {
-	c.echoSrv.GET("/event", c.HandleEventGet)
-	c.echoSrv.POST("/event", c.HandleEventPost)
-	c.echoSrv.GET("/health", c.HandleHealth)
-	c.echoSrv.GET("/metrics", echoprometheus.NewHandler())
-	c.echoSrv.GET("/status", func(ctx echo.Context) error {
+	e := echo.New()
+	e.Logger.SetLevel(log.INFO)
+	e.Renderer = c
+	e.HTTPErrorHandler = customHTTPErrorHandler
+
+	e.GET("/event", c.HandleEventGet)
+	e.POST("/event", c.HandleEventPost)
+	e.GET("/health", c.HandleHealth)
+
+	e.GET("/status", func(ctx echo.Context) error {
 		return c.HandleStatus(ctx, addr)
 	})
 
-	return c.echoSrv.Start(addr)
+	return e.Start(addr)
 }
 
 func customHTTPErrorHandler(err error, ctx echo.Context) {
