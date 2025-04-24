@@ -58,6 +58,7 @@ func New(url string, authToken string, webhookID string, logger *zap.Logger, opt
 			return nil
 		},
 	}))
+	c.logger.Info("Request logging middleware for Echo enabled.")
 
 	c.echoSrv.Logger.SetLevel(c.logLevel.ToGommon())
 	c.echoSrv.Renderer = c

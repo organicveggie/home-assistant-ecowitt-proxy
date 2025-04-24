@@ -28,16 +28,27 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
+
+func makeZapLogger(t *testing.T) *zap.Logger {
+	t.Helper()
+
+	logger, err := zap.NewDevelopment()
+	assert.Nil(t, err)
+	return logger
+}
 
 func TestHandleHealth(t *testing.T) {
 	t.Run("should return 200 OK", func(t *testing.T) {
+		logger := makeZapLogger(t)
+
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		ctrl := New("http://localhost/ecowitt", "test-token", "test-webhook")
+		ctrl := New("http://localhost/ecowitt", "test-token", "test-webhook", logger)
 		defer ctrl.Close()
 
 		err := ctrl.HandleHealth(c)
@@ -49,12 +60,14 @@ func TestHandleHealth(t *testing.T) {
 
 func TestHandleEventGet(t *testing.T) {
 	t.Run("should return 200 OK", func(t *testing.T) {
+		logger := makeZapLogger(t)
+
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		ctrl := New("http://localhost/ecowitt", "test-token", "test-webhook")
+		ctrl := New("http://localhost/ecowitt", "test-token", "test-webhook", logger)
 		defer ctrl.Close()
 
 		err := ctrl.HandleEventGet(c)
@@ -99,6 +112,8 @@ func TestHandleEventPost(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			logger := makeZapLogger(t)
+
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("[%s] http.HandlerFunc() return %d\n", test.name, test.statusCode)
 				w.WriteHeader(test.statusCode)
@@ -106,7 +121,7 @@ func TestHandleEventPost(t *testing.T) {
 			}))
 			defer svr.Close()
 
-			ctrl := New(svr.URL, token, webhookId)
+			ctrl := New(svr.URL, token, webhookId, logger)
 			defer ctrl.Close()
 
 			e := echo.New()
@@ -206,13 +221,15 @@ func TestHandleStatus(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			logger := makeZapLogger(t)
+
 			e := echo.New()
 			req := httptest.NewRequest(http.MethodGet, "/status", nil)
 			rec := httptest.NewRecorder()
 			ctx := e.NewContext(req, rec)
 
 			f := fmt.Sprintf("testdata/%s", test.tmplFilename)
-			ctrl := New(test.url, test.authToken, test.webhookId,
+			ctrl := New(test.url, test.authToken, test.webhookId, logger,
 				WithTemplates(template.Must(template.ParseFiles(f))), WithEchoServer(e))
 			defer ctrl.Close()
 
