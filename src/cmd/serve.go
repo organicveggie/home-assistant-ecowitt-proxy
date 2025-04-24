@@ -39,17 +39,6 @@ const (
 	viperListenPort    = "port"
 )
 
-type ServerOptions struct {
-	Address string
-	Port    int
-
-	HassURL       string
-	HassAuthToken string
-	WebhookID     string
-}
-
-var serveOpts ServerOptions
-
 // serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:   "serve",
@@ -62,41 +51,42 @@ exit until it receives a SIGTERM.`,
 }
 
 func init() {
-	rootCmd.AddCommand(serveCmd)
-
-	serveCmd.Flags().StringVarP(&serveOpts.Address, flagListenAddress, "l", "",
-		"IP address to listen on (default is to listen on all addresses)")
+	serveCmd.Flags().StringP(flagListenAddress, "l", "", "IP address to listen on (default is to listen on all addresses)")
 	viper.BindPFlag(viperListenAddress, serveCmd.Flags().Lookup(flagListenAddress))
 	viper.BindEnv(viperListenAddress, "SERVER_ADDRESS", "ECOWITT_PROXY_ADDRESS")
 
-	serveCmd.Flags().IntVarP(&serveOpts.Port, flagListenPort, "p", defaultPort, "TCP port to listen on")
+	serveCmd.Flags().IntP(flagListenPort, "p", defaultPort, "TCP port to listen on")
 	viper.BindPFlag(viperListenPort, serveCmd.Flags().Lookup(flagListenPort))
 	viper.BindEnv(viperListenPort, "SERVER_PORT", "ECOWITT_PROXY_PORT")
 
-	serveCmd.Flags().StringVarP(&serveOpts.HassURL, flagHassUrl, "u", "",
-		"Base URL for Home Assistant")
+	serveCmd.Flags().StringP(flagHassUrl, "u", "", "Base URL for Home Assistant")
 	serveCmd.MarkFlagRequired(flagHassUrl)
 	viper.BindPFlag(flagHassUrl, serveCmd.Flags().Lookup(flagHassUrl))
 	viper.BindEnv(flagHassUrl, "HASS_URL", "ECOWITT_PROXY_HASS_URL")
 
-	serveCmd.Flags().StringVarP(&serveOpts.HassAuthToken, flagHassAuthToken, "a", "",
-		"Home Assistant auth token")
+	serveCmd.Flags().StringP(flagHassAuthToken, "a", "", "Home Assistant auth token")
 	serveCmd.MarkFlagRequired(flagHassAuthToken)
 	viper.BindPFlag(flagHassAuthToken, serveCmd.Flags().Lookup(flagHassAuthToken))
 	viper.BindEnv(flagHassAuthToken, "HASS_AUTH_TOKEN", "ECOWITT_PROXY_HASS_AUTH_TOKEN")
 
-	serveCmd.Flags().StringVarP(&serveOpts.WebhookID, flagHassWebhookId, "w", "",
-		"Home Assistant webhook id")
+	serveCmd.Flags().StringP(flagHassWebhookId, "w", "", "Home Assistant webhook id")
 	serveCmd.MarkFlagRequired(flagHassWebhookId)
 	viper.BindPFlag(flagHassWebhookId, serveCmd.Flags().Lookup(flagHassWebhookId))
 	viper.BindEnv(flagHassWebhookId, "HASS_WEBHOOK_ID", "ECOWITT_PROXY_HASS_WEBHOOK_ID")
 }
 
 func runServeCmd(_ *cobra.Command, _ []string) error {
-	ctrl := controller.New(serveOpts.HassURL, serveOpts.HassAuthToken, serveOpts.WebhookID,
-		controller.WithTemplates(template.Must(template.ParseGlob("html/*.html"))))
+
+	hassURL := viper.GetString(flagHassUrl)
+	hassAuthToken := viper.GetString(flagHassAuthToken)
+	hassWebhookID := viper.GetString(flagHassWebhookId)
+
+	ctrl := controller.New(hassURL, hassAuthToken, hassWebhookID,
+		logger, controller.WithTemplates(template.Must(template.ParseGlob("html/*.html"))))
 	defer ctrl.Close()
 
-	addr := fmt.Sprintf("%s:%d", serveOpts.Address, serveOpts.Port)
+	serveAddress := viper.GetString(viperListenAddress)
+	servePort := viper.GetInt(viperListenPort)
+	addr := fmt.Sprintf("%s:%d", serveAddress, servePort)
 	return ctrl.Serve(addr)
 }
