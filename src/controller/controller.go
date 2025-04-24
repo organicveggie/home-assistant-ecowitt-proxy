@@ -23,13 +23,19 @@ import (
 	"net/http"
 	"sync/atomic"
 
+	"hass-ecowitt-proxy/logging"
+
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	"go.uber.org/zap"
 )
 
-func New(url string, authToken string, webhookID string, opts ...Option) *Controller {
+func New(url string, authToken string, webhookID string, logger *zap.Logger, opts ...Option) *Controller {
 	c := &Controller{
 		echoSrv:       echo.New(),
+		logger:        logger.Sugar(),
+		logLevel:      logging.InfoLevel,
 		hassURL:       url,
 		hassAuthToken: authToken,
 		webhookID:     webhookID,
@@ -39,7 +45,22 @@ func New(url string, authToken string, webhookID string, opts ...Option) *Contro
 		opt(c)
 	}
 
-	c.echoSrv.Logger.SetLevel(log.INFO)
+	// Setup request logging
+	c.echoSrv.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Info("request",
+				zap.String("URI", v.URI),
+				zap.Int("status", v.Status),
+			)
+
+			return nil
+		},
+	}))
+	c.logger.Info("Request logging middleware for Echo enabled.")
+
+	c.echoSrv.Logger.SetLevel(c.logLevel.ToGommon())
 	c.echoSrv.Renderer = c
 	c.echoSrv.HTTPErrorHandler = customHTTPErrorHandler
 
@@ -60,9 +81,18 @@ func WithEchoServer(echoSrv *echo.Echo) Option {
 	}
 }
 
+func WithLogLevel(level logging.LogLevel) Option {
+	return func(c *Controller) {
+		c.logLevel = level
+	}
+}
+
 type Controller struct {
 	echoSrv   *echo.Echo
 	templates *template.Template
+
+	logLevel logging.LogLevel
+	logger   *zap.SugaredLogger
 
 	hassURL       string
 	hassAuthToken string

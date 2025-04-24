@@ -22,3 +22,7 @@ go.work
 
 # Visual Studio Code workspaces
 *.code-workspace
+
+# Ignore compiled binary
+src/hass-ecowitt-proxy
+docker_run.sh

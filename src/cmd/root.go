@@ -19,12 +19,17 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
+
+	"hass-ecowitt-proxy/logging"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	cfgFile string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -46,11 +51,27 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "Config file (default is $HOME/.hass-ecowitt-proxy.yaml)")
+	rootCmd.PersistentFlags().StringP(flagOutput, "o", "stdout",
+		"Output target for log messages. One ofstdout, stderr, or filename. Defaults to stderr. Ignored if loglevel is off.")
+	viper.BindPFlag(flagOutput, rootCmd.PersistentFlags().Lookup(flagOutput))
+	viper.BindEnv(flagOutput, "ECOWITT_PROXY_OUTPUT")
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.hass-ecowitt-proxy.yaml)")
+	rootCmd.PersistentFlags().StringP(flagLogLevel, "l", logging.InfoLevel.String(),
+		"Log level. One of: "+strings.Join(logging.LogLevelNames(), ", "))
+	viper.BindPFlag(flagLogLevel, rootCmd.PersistentFlags().Lookup(flagLogLevel))
+	viper.BindEnv(flagLogLevel, "ECOWITT_PROXY_LOGLEVEL")
+
+	rootCmd.AddCommand(serveCmd)
+
+	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		level := viper.GetString(flagLogLevel)
+		if _, err := logging.LogLevelFromStr(level); err != nil {
+			return err
+		}
+
+		return nil
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.
