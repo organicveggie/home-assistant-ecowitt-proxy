@@ -115,7 +115,9 @@ func runServeCmd(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("failed to create Zap logger: %w", err)
 	}
 	defer logger.Sync()
-	zap.RedirectStdLog(logger)
+
+	zapUndoRedirect := zap.RedirectStdLog(logger)
+	defer zapUndoRedirect()
 
 	hassURL := viper.GetString(flagHassUrl)
 	hassAuthToken := viper.GetString(flagHassAuthToken)
