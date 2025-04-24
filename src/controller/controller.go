@@ -27,7 +27,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/labstack/gommon/log"
 	"go.uber.org/zap"
 )
 
@@ -128,7 +127,7 @@ func (c *Controller) HandleEventPost(ctx echo.Context) error {
 	values, err := ctx.FormParams()
 	if err != nil {
 		c.errorCount.Add(1)
-		ctx.Logger().Errorf("Error retrieving form parameters: %w", err)
+		ctx.Logger().Errorf("Error retrieving form parameters: %s", err)
 		return ctx.JSON(http.StatusInternalServerError,
 			c.NewErrorResponse("Error retrieving form parameters", err))
 	}
@@ -139,7 +138,7 @@ func (c *Controller) HandleEventPost(ctx echo.Context) error {
 	haClient := NewHassClient(forwardUrl, c.hassAuthToken, values)
 	if err := haClient.PostData(ctx.Request().Context()); err != nil {
 		c.errorCount.Add(1)
-		ctx.Logger().Errorf("Error posting event data to Home Assistant: %w", err)
+		ctx.Logger().Errorf("Error posting event data to Home Assistant: %s", err)
 		return ctx.JSON(http.StatusInternalServerError, c.NewErrorResponse(forwardUrl, err))
 	}
 
@@ -192,20 +191,15 @@ func (c *Controller) Render(w io.Writer, name string, data interface{}, ctx echo
 }
 
 func (c *Controller) Serve(addr string) error {
-	e := echo.New()
-	e.Logger.SetLevel(log.INFO)
-	e.Renderer = c
-	e.HTTPErrorHandler = customHTTPErrorHandler
+	c.echoSrv.GET("/event", c.HandleEventGet)
+	c.echoSrv.POST("/event", c.HandleEventPost)
+	c.echoSrv.GET("/health", c.HandleHealth)
 
-	e.GET("/event", c.HandleEventGet)
-	e.POST("/event", c.HandleEventPost)
-	e.GET("/health", c.HandleHealth)
-
-	e.GET("/status", func(ctx echo.Context) error {
+	c.echoSrv.GET("/status", func(ctx echo.Context) error {
 		return c.HandleStatus(ctx, addr)
 	})
 
-	return e.Start(addr)
+	return c.echoSrv.Start(addr)
 }
 
 func customHTTPErrorHandler(err error, ctx echo.Context) {
@@ -213,7 +207,11 @@ func customHTTPErrorHandler(err error, ctx echo.Context) {
 	if he, ok := err.(*echo.HTTPError); ok {
 		code = he.Code
 	}
-	ctx.Logger().Error(err)
+	if code == http.StatusNotFound {
+		ctx.Logger().Errorf("%s: %q", err, ctx.Request().URL)
+	} else {
+		ctx.Logger().Error(err)
+	}
 	ctx.JSON(code, struct{ Message string }{Message: "Internal Server Error"})
 }
 
