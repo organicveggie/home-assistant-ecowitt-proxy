@@ -18,25 +18,18 @@ package cmd
 
 import (
 	"fmt"
-	"hass-ecowitt-proxy/controller"
 	"html/template"
+
+	"hass-ecowitt-proxy/controller"
+	"hass-ecowitt-proxy/logging"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 const (
 	defaultPort = 8181
-
-	flagListenAddress = "listen_address"
-	flagListenPort    = "port"
-
-	flagHassUrl       = "hass_url"
-	flagHassAuthToken = "hass_auth_token"
-	flagHassWebhookId = "hass_webhook_id"
-
-	viperListenAddress = "listen"
-	viperListenPort    = "port"
 )
 
 // serveCmd represents the serve command
@@ -76,13 +69,28 @@ func init() {
 }
 
 func runServeCmd(_ *cobra.Command, _ []string) error {
+	logLevelName := viper.GetString(flagLogLevel)
+	logLevel, err := logging.LogLevelFromStr(logLevelName)
+	if err != nil {
+		return fmt.Errorf("error running serve command: %w", err)
+	}
+
+	// Setup Zap logging
+	logConfig := zap.NewDevelopmentConfig()
+	logConfig.Level = zap.NewAtomicLevelAt(logLevel.ToZap())
+	logger, err := logConfig.Build()
+	if err != nil {
+		return fmt.Errorf("failed to create Zap logger: %w", err)
+	}
+	defer logger.Sync()
 
 	hassURL := viper.GetString(flagHassUrl)
 	hassAuthToken := viper.GetString(flagHassAuthToken)
 	hassWebhookID := viper.GetString(flagHassWebhookId)
 
-	ctrl := controller.New(hassURL, hassAuthToken, hassWebhookID,
-		logger, controller.WithTemplates(template.Must(template.ParseGlob("html/*.html"))))
+	ctrl := controller.New(hassURL, hassAuthToken, hassWebhookID, logger,
+		controller.WithLogLevel(logLevel),
+		controller.WithTemplates(template.Must(template.ParseGlob("html/*.html"))))
 	defer ctrl.Close()
 
 	serveAddress := viper.GetString(viperListenAddress)
