@@ -136,7 +136,7 @@ func (c *Controller) HandleEventPost(ctx echo.Context) error {
 	}
 
 	forwardUrl := fmt.Sprintf("%s/api/webhook/%s", c.hassURL, c.webhookID)
-	ctx.Logger().Infof("Forwarding Ecowitt event data to %q", forwardUrl, values)
+	ctx.Logger().Infof("Forwarding Ecowitt event data to %s", forwardUrl)
 	ctx.Logger().Debugf("Ecowitt event data: %v", values)
 
 	haClient := NewHassClient(forwardUrl, c.hassAuthToken, values)
