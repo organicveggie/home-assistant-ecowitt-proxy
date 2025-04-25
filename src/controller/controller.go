@@ -52,6 +52,9 @@ func New(url string, authToken string, webhookID string, logger *zap.Logger, opt
 			logger.Info("request",
 				zap.String("URI", v.URI),
 				zap.Int("status", v.Status),
+				zap.String("host", v.Host),
+				zap.String("protocol", v.Protocol),
+				zap.String("method", v.Method),
 			)
 
 			return nil
@@ -133,7 +136,8 @@ func (c *Controller) HandleEventPost(ctx echo.Context) error {
 	}
 
 	forwardUrl := fmt.Sprintf("%s/api/webhook/%s", c.hassURL, c.webhookID)
-	ctx.Logger().Infof("Forwarding Ecowitt event data to %q: %v", forwardUrl, values)
+	ctx.Logger().Infof("Forwarding Ecowitt event data to %q", forwardUrl, values)
+	ctx.Logger().Debugf("Ecowitt event data: %v", values)
 
 	haClient := NewHassClient(forwardUrl, c.hassAuthToken, values)
 	if err := haClient.PostData(ctx.Request().Context()); err != nil {
